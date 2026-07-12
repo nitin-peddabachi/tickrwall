@@ -47,19 +47,48 @@ def test_format_espn_final_is_white():
     assert item["live"] is False
 
 
-CRICKET_LIVE = {
-    "matchEnded": False,
-    "score": [
-        {"r": 310, "w": 10, "o": 49.2, "inning": "Australia Inning 1"},
-        {"r": 287, "w": 4, "o": 42.3, "inning": "India Inning 1"},
-    ],
+CRICKET_EVENT_FINAL = {
+    "status": {"type": {"state": "post", "shortDetail": "Final"}},
+    "competitions": [{
+        "competitors": [
+            {"homeAway": "home", "score": "161/5 (18/20 ov, target 156)",
+             "team": {"abbreviation": "RCB"}},
+            {"homeAway": "away", "score": "155/8", "team": {"abbreviation": "GT"}},
+        ]
+    }],
 }
 
 
-def test_format_cricket_live_uses_latest_innings():
-    item = formatters.format_cricket_match(CRICKET_LIVE)
-    assert item == {"text": "IND 287/4 (42.3 ov)", "color": formatters.YELLOW, "live": True}
+def test_format_cricket_final():
+    item = formatters.format_cricket_event(CRICKET_EVENT_FINAL)
+    assert item == {
+        "text": "GT 155/8 v RCB 161/5 (18/20 ov, target 156) Final",
+        "color": formatters.WHITE,
+        "live": False,
+    }
 
 
-def test_format_cricket_no_score_returns_none():
-    assert formatters.format_cricket_match({"matchEnded": False, "score": []}) is None
+def test_format_cricket_live_is_yellow():
+    ev = {
+        "status": {"type": {"state": "in", "shortDetail": "RCB need 2"}},
+        "competitions": CRICKET_EVENT_FINAL["competitions"],
+    }
+    item = formatters.format_cricket_event(ev)
+    assert item["color"] == formatters.YELLOW
+    assert item["live"] is True
+
+
+def test_format_cricket_pregame_returns_none():
+    ev = {"status": {"type": {"state": "pre"}}, "competitions": []}
+    assert formatters.format_cricket_event(ev) is None
+
+
+def test_format_cricket_no_scores_returns_none():
+    ev = {
+        "status": {"type": {"state": "in", "shortDetail": "Delayed"}},
+        "competitions": [{"competitors": [
+            {"homeAway": "home", "score": "", "team": {"abbreviation": "RCB"}},
+            {"homeAway": "away", "score": "", "team": {"abbreviation": "GT"}},
+        ]}],
+    }
+    assert formatters.format_cricket_event(ev) is None

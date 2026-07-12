@@ -15,10 +15,11 @@ reliable.
 Two decoupled halves:
 
 1. **Feed server** (`server/`) — a small Flask app that polls
-   [Finnhub][fh] (stocks), [ESPN][espn] (soccer/NFL scores), and
-   [CricAPI][cric] (cricket), formats each into a display-ready item, and
-   serves them at `GET /feed.json`. Responses are cached per-URL with a TTL so
-   a display polling every 30s never hammers the upstream APIs.
+   [Finnhub][fh] (stocks) and [ESPN][espn] (soccer, NFL, and cricket scores),
+   formats each into a display-ready item, and serves them at `GET /feed.json`.
+   Responses are cached per-URL with a TTL so a display polling every 30s never
+   hammers the upstream APIs. Only stocks need an API key; all scores come from
+   ESPN's public endpoints.
 2. **Device renderer** (`device/`) — CircuitPython running on the MatrixPortal.
    It fetches `feed.json` and scrolls the items. It parses nothing else and
    makes no decisions; every formatting change lands server-side.
@@ -42,16 +43,16 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
-export FINNHUB_KEY=your_finnhub_key      # required for stocks
-export CRICAPI_KEY=your_cricapi_key      # optional; cricket is skipped without it
+export FINNHUB_KEY=your_finnhub_key      # required for stocks; scores need no key
 python -m server.app                     # serves on http://0.0.0.0:8300
 ```
 
-Then `curl localhost:8300/feed.json`. ESPN scores need no key. If any source is
-down or a key is missing, that source is skipped and the feed still serves
-whatever else is available — it never errors out.
+Then `curl localhost:8300/feed.json`. ESPN scores (soccer, NFL, cricket) need no
+key. If any source is down or the Finnhub key is missing, that source is skipped
+and the feed still serves whatever else is available — it never errors out.
 
-Configure your watchlist, leagues, and dim hours in `server/config.py`.
+Configure your watchlist, leagues, cricket tournaments, and dim hours in
+`server/config.py`.
 
 ## Tests
 
@@ -83,4 +84,3 @@ The server now starts at login and restarts if it crashes.
 [mp]: https://www.adafruit.com/product/5778
 [fh]: https://finnhub.io
 [espn]: https://www.espn.com
-[cric]: https://cricapi.com

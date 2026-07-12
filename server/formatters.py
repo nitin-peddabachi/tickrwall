@@ -32,12 +32,20 @@ def format_espn_event(event):
     return {"text": text.strip(), "color": YELLOW if live else WHITE, "live": live}
 
 
-def format_cricket_match(m):
-    scores = m.get("score") or []
-    if not scores:
+def format_cricket_event(event):
+    status = event["status"]["type"]
+    if status["state"] == "pre":
         return None
-    s = scores[-1]
-    team = (s.get("inning") or "???")[:3].upper()
-    live = not m.get("matchEnded", False)
-    text = "%s %s/%s (%s ov)" % (team, s.get("r", 0), s.get("w", 0), s.get("o", 0))
-    return {"text": text, "color": YELLOW if live else WHITE, "live": live}
+    competitors = event["competitions"][0]["competitors"]
+    scored = [c for c in competitors if c.get("score")]
+    if not scored:
+        return None
+    home = next((c for c in competitors if c["homeAway"] == "home"), competitors[0])
+    away = next((c for c in competitors if c["homeAway"] == "away"), competitors[-1])
+    live = status["state"] == "in"
+    text = "%s %s v %s %s %s" % (
+        away["team"]["abbreviation"], away.get("score", "-"),
+        home["team"]["abbreviation"], home.get("score", "-"),
+        status.get("shortDetail", ""),
+    )
+    return {"text": " ".join(text.split()), "color": YELLOW if live else WHITE, "live": live}

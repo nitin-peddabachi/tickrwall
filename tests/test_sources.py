@@ -36,8 +36,3 @@ def test_get_json_refetches_after_ttl(monkeypatch):
     sources._get_json("http://example/y", ttl=0)
 
     assert len(calls) == 2
-
-
-def test_cricket_without_key_returns_empty(monkeypatch):
-    monkeypatch.setattr(sources, "CRICAPI_KEY", "")
-    assert sources.cricket_matches() == {"data": []}
