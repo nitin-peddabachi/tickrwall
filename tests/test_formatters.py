@@ -45,3 +45,21 @@ def test_format_espn_final_is_white():
     item = formatters.format_espn_event(ev)
     assert item["color"] == formatters.WHITE
     assert item["live"] is False
+
+
+CRICKET_LIVE = {
+    "matchEnded": False,
+    "score": [
+        {"r": 310, "w": 10, "o": 49.2, "inning": "Australia Inning 1"},
+        {"r": 287, "w": 4, "o": 42.3, "inning": "India Inning 1"},
+    ],
+}
+
+
+def test_format_cricket_live_uses_latest_innings():
+    item = formatters.format_cricket_match(CRICKET_LIVE)
+    assert item == {"text": "IND 287/4 (42.3 ov)", "color": formatters.YELLOW, "live": True}
+
+
+def test_format_cricket_no_score_returns_none():
+    assert formatters.format_cricket_match({"matchEnded": False, "score": []}) is None

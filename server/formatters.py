@@ -30,3 +30,14 @@ def format_espn_event(event):
         status.get("shortDetail", ""),
     )
     return {"text": text.strip(), "color": YELLOW if live else WHITE, "live": live}
+
+
+def format_cricket_match(m):
+    scores = m.get("score") or []
+    if not scores:
+        return None
+    s = scores[-1]
+    team = (s.get("inning") or "???")[:3].upper()
+    live = not m.get("matchEnded", False)
+    text = "%s %s/%s (%s ov)" % (team, s.get("r", 0), s.get("w", 0), s.get("o", 0))
+    return {"text": text, "color": YELLOW if live else WHITE, "live": live}
