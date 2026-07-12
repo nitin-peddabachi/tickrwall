@@ -30,3 +30,13 @@ def espn_scoreboard(sport, league):
         "https://site.api.espn.com/apis/site/v2/sports/%s/%s/scoreboard" % (sport, league),
         ttl=60,
     )
+
+
+def crypto_prices(ids):
+    if not ids:
+        return {}
+    return _get_json(
+        "https://api.coingecko.com/api/v3/simple/price"
+        "?ids=%s&vs_currencies=usd&include_24hr_change=true" % ",".join(ids),
+        ttl=60,
+    )
