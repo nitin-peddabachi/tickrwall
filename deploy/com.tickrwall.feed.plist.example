@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copy to ~/Library/LaunchAgents/com.tickrwall.feed.plist, then replace:
+    /ABSOLUTE/PATH/TO/tickrwall  with the repo's absolute path
+    YOUR_FINNHUB_KEY / YOUR_CRICAPI_KEY  with your API keys
+  Load with: launchctl load ~/Library/LaunchAgents/com.tickrwall.feed.plist
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.tickrwall.feed</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/ABSOLUTE/PATH/TO/tickrwall/.venv/bin/python</string>
+        <string>-m</string>
+        <string>server.app</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/ABSOLUTE/PATH/TO/tickrwall</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>FINNHUB_KEY</key>
+        <string>YOUR_FINNHUB_KEY</string>
+        <key>CRICAPI_KEY</key>
+        <string>YOUR_CRICAPI_KEY</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/tickrwall-feed.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/tickrwall-feed.log</string>
+</dict>
+</plist>
