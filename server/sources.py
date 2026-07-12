@@ -4,7 +4,6 @@ import time
 import requests
 
 FINNHUB_KEY = os.environ.get("FINNHUB_KEY", "")
-CRICAPI_KEY = os.environ.get("CRICAPI_KEY", "")
 
 _cache = {}
 
@@ -30,13 +29,4 @@ def espn_scoreboard(sport, league):
     return _get_json(
         "https://site.api.espn.com/apis/site/v2/sports/%s/%s/scoreboard" % (sport, league),
         ttl=60,
-    )
-
-
-def cricket_matches():
-    if not CRICAPI_KEY:
-        return {"data": []}
-    return _get_json(
-        "https://api.cricapi.com/v1/currentMatches?apikey=%s&offset=0" % CRICAPI_KEY,
-        ttl=120,
     )

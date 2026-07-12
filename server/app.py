@@ -35,10 +35,11 @@ def _collect():
         app.logger.warning("scores failed: %s", exc)
 
     try:
-        for match in sources.cricket_matches().get("data", []):
-            item = formatters.format_cricket_match(match)
-            if item:
-                items.append(item)
+        for league in config.CRICKET_LEAGUES:
+            for event in sources.espn_scoreboard("cricket", league).get("events", []):
+                item = formatters.format_cricket_event(event)
+                if item:
+                    items.append(item)
     except Exception as exc:
         app.logger.warning("cricket failed: %s", exc)
 

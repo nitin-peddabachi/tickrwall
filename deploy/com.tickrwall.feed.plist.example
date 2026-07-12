@@ -2,7 +2,7 @@
 <!--
   Copy to ~/Library/LaunchAgents/com.tickrwall.feed.plist, then replace:
     /ABSOLUTE/PATH/TO/tickrwall  with the repo's absolute path
-    YOUR_FINNHUB_KEY / YOUR_CRICAPI_KEY  with your API keys
+    YOUR_FINNHUB_KEY  with your Finnhub API key (scores need no key)
   Load with: launchctl load ~/Library/LaunchAgents/com.tickrwall.feed.plist
 -->
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -25,8 +25,6 @@
     <dict>
         <key>FINNHUB_KEY</key>
         <string>YOUR_FINNHUB_KEY</string>
-        <key>CRICAPI_KEY</key>
-        <string>YOUR_CRICAPI_KEY</string>
     </dict>
 
     <key>RunAtLoad</key>
