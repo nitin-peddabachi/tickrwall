@@ -36,3 +36,11 @@ def test_get_json_refetches_after_ttl(monkeypatch):
     sources._get_json("http://example/y", ttl=0)
 
     assert len(calls) == 2
+
+
+def test_crypto_prices_empty_ids_makes_no_call(monkeypatch):
+    called = []
+    monkeypatch.setattr(sources.requests, "get",
+                        lambda url, timeout: called.append(url))
+    assert sources.crypto_prices([]) == {}
+    assert called == []

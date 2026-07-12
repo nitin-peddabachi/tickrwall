@@ -1,5 +1,8 @@
 WATCHLIST = ["AAPL", "NVDA", "NFLX"]
 
+# CoinGecko coin id -> ticker symbol shown on the display (keyless source)
+CRYPTO = {"bitcoin": "BTC", "ethereum": "ETH", "litecoin": "LTC"}
+
 SOCCER_LEAGUES = ["eng.1"]  # ESPN league slugs; eng.1 = Premier League
 NFL = True
 

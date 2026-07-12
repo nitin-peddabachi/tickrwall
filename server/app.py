@@ -23,6 +23,15 @@ def _collect():
         app.logger.warning("stocks failed: %s", exc)
 
     try:
+        prices = sources.crypto_prices(list(config.CRYPTO.keys()))
+        for coin_id, symbol in config.CRYPTO.items():
+            item = formatters.format_crypto(symbol, prices.get(coin_id))
+            if item:
+                items.append(item)
+    except Exception as exc:
+        app.logger.warning("crypto failed: %s", exc)
+
+    try:
         leagues = [("soccer", lg) for lg in config.SOCCER_LEAGUES]
         if config.NFL:
             leagues.append(("football", "nfl"))

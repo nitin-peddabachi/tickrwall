@@ -16,6 +16,21 @@ def test_format_stock_bad_quote_returns_none():
     assert formatters.format_stock("XXXX", None) is None
 
 
+def test_format_crypto_up():
+    item = formatters.format_crypto("BTC", {"usd": 64161.0, "usd_24h_change": 2.34})
+    assert item == {"text": "BTC 64161.00 +2.3%", "color": formatters.GREEN, "live": False}
+
+
+def test_format_crypto_down():
+    item = formatters.format_crypto("LTC", {"usd": 44.52, "usd_24h_change": -1.9})
+    assert item == {"text": "LTC 44.52 -1.9%", "color": formatters.RED, "live": False}
+
+
+def test_format_crypto_missing_returns_none():
+    assert formatters.format_crypto("ETH", None) is None
+    assert formatters.format_crypto("ETH", {"usd": None}) is None
+
+
 ESPN_EVENT_LIVE = {
     "status": {"type": {"state": "in", "shortDetail": "78'"}},
     "competitions": [{

@@ -1,9 +1,9 @@
 # tickrwall
 
-A wall/desk LED matrix ticker that scrolls a stock watchlist and live sports
-scores (cricket, soccer, NFL). An [Adafruit MatrixPortal S3][mp] driving a
-64×32 HUB75 panel fetches one compact JSON feed and scrolls it — all data
-fetching and formatting happens server-side, so the display stays dumb and
+A wall/desk LED matrix ticker that scrolls a stock watchlist, crypto prices,
+and live sports scores (cricket, soccer, NFL). An [Adafruit MatrixPortal S3][mp]
+driving a 64×32 HUB75 panel fetches one compact JSON feed and scrolls it — all
+data fetching and formatting happens server-side, so the display stays dumb and
 reliable.
 
 ```
@@ -15,11 +15,11 @@ reliable.
 Two decoupled halves:
 
 1. **Feed server** (`server/`) — a small Flask app that polls
-   [Finnhub][fh] (stocks) and [ESPN][espn] (soccer, NFL, and cricket scores),
-   formats each into a display-ready item, and serves them at `GET /feed.json`.
-   Responses are cached per-URL with a TTL so a display polling every 30s never
-   hammers the upstream APIs. Only stocks need an API key; all scores come from
-   ESPN's public endpoints.
+   [Finnhub][fh] (stocks), [CoinGecko][cg] (crypto), and [ESPN][espn] (soccer,
+   NFL, and cricket scores), formats each into a display-ready item, and serves
+   them at `GET /feed.json`. Responses are cached per-URL with a TTL so a
+   display polling every 30s never hammers the upstream APIs. Only stocks need
+   an API key; crypto and scores come from public endpoints.
 2. **Device renderer** (`device/`) — CircuitPython running on the MatrixPortal.
    It fetches `feed.json` and scrolls the items. It parses nothing else and
    makes no decisions; every formatting change lands server-side.
@@ -51,8 +51,8 @@ Then `curl localhost:8300/feed.json`. ESPN scores (soccer, NFL, cricket) need no
 key. If any source is down or the Finnhub key is missing, that source is skipped
 and the feed still serves whatever else is available — it never errors out.
 
-Configure your watchlist, leagues, cricket tournaments, and dim hours in
-`server/config.py`.
+Configure your watchlist, crypto coins, leagues, cricket tournaments, and dim
+hours in `server/config.py`.
 
 ## Tests
 
@@ -83,4 +83,5 @@ The server now starts at login and restarts if it crashes.
 
 [mp]: https://www.adafruit.com/product/5778
 [fh]: https://finnhub.io
+[cg]: https://www.coingecko.com/en/api
 [espn]: https://www.espn.com
