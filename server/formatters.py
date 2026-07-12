@@ -14,3 +14,19 @@ def format_stock(sym, q):
         "color": GREEN if pct >= 0 else RED,
         "live": False,
     }
+
+
+def format_espn_event(event):
+    status = event["status"]["type"]
+    if status["state"] == "pre":
+        return None
+    competitors = event["competitions"][0]["competitors"]
+    home = next(c for c in competitors if c["homeAway"] == "home")
+    away = next(c for c in competitors if c["homeAway"] == "away")
+    live = status["state"] == "in"
+    text = "%s %s-%s %s %s" % (
+        away["team"]["abbreviation"], away["score"],
+        home["score"], home["team"]["abbreviation"],
+        status.get("shortDetail", ""),
+    )
+    return {"text": text.strip(), "color": YELLOW if live else WHITE, "live": live}
