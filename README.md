@@ -51,8 +51,8 @@ Then `curl localhost:8300/feed.json`. ESPN scores (soccer, NFL, cricket) need no
 key. If any source is down or the Finnhub key is missing, that source is skipped
 and the feed still serves whatever else is available — it never errors out.
 
-Configure your watchlist, crypto coins, leagues, cricket tournaments, and dim
-hours in `server/config.py`.
+Configure your watchlist, crypto, leagues, cricket tournaments, and dim hours in
+`server/config.py`.
 
 ## Tests
 
