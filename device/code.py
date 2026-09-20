@@ -87,15 +87,42 @@ for _symbol, (_rows, _color_hex) in LOGOS.items():
     )
 
 
+# Small hand-drawn "digital glyph" pixel patterns (4 wide x 5 tall) used by
+# the rain animation instead of loading a real font — abstract symbols, not
+# actual characters, but they read as "falling code" rather than plain dots.
+GLYPH_W = 4
+GLYPH_H = 5
+GLYPHS = [
+    ["0110", "1001", "1001", "1001", "0110"],  # o
+    ["0100", "0100", "1110", "0100", "0100"],  # +
+    ["1010", "1010", "0000", "1010", "1010"],  # dots
+    ["1111", "0010", "0100", "1000", "1111"],  # z
+    ["0010", "0110", "1010", "0010", "0010"],  # check
+    ["1001", "1001", "0110", "1001", "1001"],  # x
+    ["1100", "1100", "0011", "0011", "1111"],  # blocky
+    ["0001", "0011", "0101", "1001", "1111"],  # diagonal
+]
+COL_PITCH = GLYPH_W + 1
+ROW_PITCH = GLYPH_H + 1
+
+
 def start_matrix_rain():
-    """Set up the falling-green-column boot animation and show it immediately.
+    """Set up the falling-character boot animation and show it immediately.
 
     Returns a state dict for advance_matrix_rain() to step frame-by-frame.
     Split from the stepping logic (rather than looping for a fixed duration
     here) so the caller can keep animating for as long as it takes to get
     on WiFi and fetch the first feed — see the combined loop below.
+
+    Animates per character-cell (a grid of GLYPH_W x GLYPH_H blocks with a
+    1px gap) rather than per-pixel-row, so each falling "drop" shows a
+    column of small glyph symbols instead of a plain color gradient.
     """
     width, height = display.width, display.height
+    n_cols = width // COL_PITCH
+    n_rows = height // ROW_PITCH
+    x_offset = (width - n_cols * COL_PITCH) // 2
+    y_offset = (height - n_rows * ROW_PITCH) // 2
     shade_count = 8  # index 0 = off; 1..7 = dim -> bright green
     green = parse_color(INTRO_GREEN)
 
@@ -110,14 +137,17 @@ def start_matrix_rain():
     display.root_group = group
 
     state = {
-        "width": width,
-        "height": height,
-        "shade_count": shade_count,
         "bitmap": bitmap,
-        "heads": [random.uniform(-height, 0) for _ in range(width)],
-        "speeds": [random.uniform(1.2, 2.8) for _ in range(width)],
-        "lengths": [random.randint(4, 10) for _ in range(width)],
-        "prev_int_head": [None] * width,
+        "shade_count": shade_count,
+        "n_cols": n_cols,
+        "n_rows": n_rows,
+        "x_offset": x_offset,
+        "y_offset": y_offset,
+        "heads": [random.uniform(-n_rows, 0) for _ in range(n_cols)],
+        "speeds": [random.uniform(0.15, 0.35) for _ in range(n_cols)],
+        "lengths": [random.randint(1, 3) for _ in range(n_cols)],
+        "prev_int_head": [None] * n_cols,
+        "glyph_at": [{} for _ in range(n_cols)],  # col -> {row: glyph index}
     }
     return state
 
@@ -125,50 +155,61 @@ def start_matrix_rain():
 def advance_matrix_rain(state):
     """Draw exactly one frame of the rain animation and sleep.
 
-    Only redraws the small band of rows a column's trail actually occupies,
-    plus clearing whatever rows it just fell past, instead of recomputing
-    all `height` rows for every column on every frame. On the M4's CPU, a
-    full 64x32 recompute per frame was slow enough that the intended frame
-    rate never happened in practice, making the animation look sluggish —
-    this keeps per-frame work close to O(trail length) instead of O(height).
+    Only redraws the small band of character-cells a column's trail
+    actually occupies, plus clearing cells it just fell past, instead of
+    recomputing every cell for every column on every frame — same reasoning
+    as the earlier per-pixel version, just at character-cell granularity.
     """
-    width, height = state["width"], state["height"]
-    shade_count = state["shade_count"]
     bitmap = state["bitmap"]
+    shade_count = state["shade_count"]
+    n_cols, n_rows = state["n_cols"], state["n_rows"]
+    x_offset, y_offset = state["x_offset"], state["y_offset"]
     heads, speeds, lengths = state["heads"], state["speeds"], state["lengths"]
-    prev_int_head = state["prev_int_head"]
+    prev_int_head, glyph_at = state["prev_int_head"], state["glyph_at"]
 
     def new_drop():
-        return random.uniform(-10, 0), random.uniform(1.2, 2.8), random.randint(4, 10)
+        return random.uniform(-3, 0), random.uniform(0.15, 0.35), random.randint(1, 3)
 
-    def draw_band(x, head, length, prev_head):
+    def stamp(col, row, glyph_index, shade):
+        gx = x_offset + col * COL_PITCH
+        gy = y_offset + row * ROW_PITCH
+        pattern = GLYPHS[glyph_index] if glyph_index is not None else None
+        for dy in range(GLYPH_H):
+            line = pattern[dy] if pattern else "0000"
+            for dx in range(GLYPH_W):
+                bitmap[gx + dx, gy + dy] = shade if line[dx] == "1" else 0
+
+    def draw_band(col, head, length, prev_head):
         top = head - length
-        for y in range(max(0, top), min(height, head + 1)):
-            dist = head - y
-            if dist == 0:
-                bitmap[x, y] = shade_count - 1
-            else:
-                bitmap[x, y] = max(1, (shade_count - 1) - round((dist / length) * (shade_count - 2)))
-        # Clear every row the trail's top edge has advanced past since the
+        for row in range(max(0, top), min(n_rows, head + 1)):
+            if row not in glyph_at[col]:
+                glyph_at[col][row] = random.randrange(len(GLYPHS))
+            dist = head - row
+            shade = (shade_count - 1) if dist == 0 else \
+                max(1, (shade_count - 1) - round((dist / length) * (shade_count - 2)))
+            stamp(col, row, glyph_at[col][row], shade)
+        # Clear every cell the trail's top edge has advanced past since the
         # last draw — head can (and usually does) jump more than one row
         # per frame at these speeds, so a single-row clear would leave
-        # bright pixels stranded above the trail.
+        # bright cells stranded above the trail.
         if prev_head is not None:
-            for y in range(max(0, prev_head - length), min(height, top)):
-                bitmap[x, y] = 0
+            for row in range(max(0, prev_head - length), min(n_rows, top)):
+                stamp(col, row, None, 0)
+                glyph_at[col].pop(row, None)
 
-    for x in range(width):
-        head = int(heads[x])
-        if head != prev_int_head[x]:
-            draw_band(x, head, lengths[x], prev_int_head[x])
-            prev_int_head[x] = head
-        heads[x] += speeds[x]
-        if heads[x] - lengths[x] > height:
-            old_head, old_length = int(heads[x]), lengths[x]
-            for y in range(max(0, old_head - old_length), min(height, old_head + 1)):
-                bitmap[x, y] = 0
-            heads[x], speeds[x], lengths[x] = new_drop()
-            prev_int_head[x] = None
+    for col in range(n_cols):
+        head = int(heads[col])
+        if head != prev_int_head[col]:
+            draw_band(col, head, lengths[col], prev_int_head[col])
+            prev_int_head[col] = head
+        heads[col] += speeds[col]
+        if heads[col] - lengths[col] > n_rows:
+            old_head, old_length = int(heads[col]), lengths[col]
+            for row in range(max(0, old_head - old_length), min(n_rows, old_head + 1)):
+                stamp(col, row, None, 0)
+            glyph_at[col] = {}
+            heads[col], speeds[col], lengths[col] = new_drop()
+            prev_int_head[col] = None
     time.sleep(INTRO_FRAME_DELAY)
 
 
@@ -200,9 +241,13 @@ ssl_context = adafruit_connection_manager.get_radio_ssl_context(radio)
 requests = adafruit_requests.Session(pool, ssl_context)
 
 
+FETCH_TIMEOUT = 5  # seconds; a hung connection should just mean "retry next second",
+                    # not a multi-second freeze of the rain animation while waiting on it.
+
+
 def fetch_feed():
     try:
-        with requests.get(FEED_URL) as resp:
+        with requests.get(FEED_URL, timeout=FETCH_TIMEOUT) as resp:
             return resp.json()
     except Exception as exc:
         print("feed fetch failed:", exc)
