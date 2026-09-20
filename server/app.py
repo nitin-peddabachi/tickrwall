@@ -36,8 +36,9 @@ def _collect():
         if config.NFL:
             leagues.append(("football", "nfl"))
         for sport, league in leagues:
+            favorites = config.FAVORITE_TEAMS.get(sport, ())
             for event in sources.espn_scoreboard(sport, league).get("events", []):
-                item = formatters.format_espn_event(event)
+                item = formatters.format_espn_event(event, always_show=favorites)
                 if item:
                     items.append(item)
     except Exception as exc:
