@@ -1,10 +1,11 @@
 # tickrwall
 
 A wall/desk LED matrix ticker that scrolls a stock watchlist, crypto prices,
-and live sports scores (cricket, soccer, NFL). An [Adafruit MatrixPortal S3][mp]
-driving a 64×32 HUB75 panel fetches one compact JSON feed and scrolls it — all
-data fetching and formatting happens server-side, so the display stays dumb and
-reliable.
+and live sports scores (cricket, soccer, NFL). An [Adafruit MatrixPortal M4][mp-m4]
+or [S3][mp-s3] driving a 64×32 HUB75 panel fetches one compact JSON feed and
+scrolls it — all data fetching and formatting happens server-side, so the
+display stays dumb and reliable. `device/code.py` runs unmodified on either
+board (see Hardware below).
 
 ```
   AAPL 231.42 +1.2%    NVDA 118.03 -2.1%    IND 287/4 (42.3 ov)    KC 2-2 BAL Bot 6th
@@ -23,6 +24,21 @@ Two decoupled halves:
 2. **Device renderer** (`device/`) — CircuitPython running on the MatrixPortal.
    It fetches `feed.json` and scrolls the items. It parses nothing else and
    makes no decisions; every formatting change lands server-side.
+
+## Hardware
+
+`device/code.py` supports both the **MatrixPortal M4** and **MatrixPortal S3**
+unmodified. The only real difference between them is WiFi: the S3 has a radio
+built into its main chip, while the M4 relies on a separate onboard ESP32
+co-processor over SPI. The code detects this at boot (`import wifi` succeeds
+on the S3, raises `ImportError` on the M4) and branches only for that; the
+panel wiring (`board.MTX_*` pins) and everything past the WiFi setup —
+fetching, scrolling, dimming — is identical on both.
+
+Copy the same library folders into `CIRCUITPY/lib/` regardless of which board
+you have: `adafruit_esp32spi/`, `adafruit_bus_device/`,
+`adafruit_connection_manager.mpy`, `adafruit_requests.mpy`,
+`adafruit_display_text/`. The ESP32SPI ones simply sit unused on an S3.
 
 Feed contract (the only coupling between the two halves):
 
@@ -74,14 +90,14 @@ The server now starts at login and restarts if it crashes.
 
 ## Roadmap
 
-- Device renderer (`device/code.py`) — ships when hardware arrives
 - Ambient/idle mode: clock, weather, or animations when markets are closed and
   no games are live
 - Pixel-art logos beside ticker text
 - 4-panel wall build
 - Self-hosting the feed server on a home mini-PC for 24/7 fresh data
 
-[mp]: https://www.adafruit.com/product/5778
+[mp-m4]: https://www.adafruit.com/product/4745
+[mp-s3]: https://www.adafruit.com/product/5778
 [fh]: https://finnhub.io
 [cg]: https://www.coingecko.com/en/api
 [espn]: https://www.espn.com
