@@ -75,13 +75,14 @@ def format_espn_event(event, always_show=()):
     return {"text": text.strip(), "color": YELLOW if live else WHITE, "live": live}
 
 
-def format_cricket_event(event):
+def format_cricket_event(event, always_show=()):
     status = event["status"]["type"]
     if status["state"] == "pre":
         return None
-    if not _is_current(status["state"], event.get("date")):
-        return None
     competitors = event["competitions"][0]["competitors"]
+    is_favorite = any(c["team"]["abbreviation"] in always_show for c in competitors)
+    if not is_favorite and not _is_current(status["state"], event.get("date")):
+        return None
     scored = [c for c in competitors if c.get("score")]
     if not scored:
         return None

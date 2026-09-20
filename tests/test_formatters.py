@@ -167,6 +167,24 @@ def test_format_cricket_final_from_a_past_tournament_is_dropped():
     assert formatters.format_cricket_event(stale) is None
 
 
+def test_format_cricket_favorite_team_bypasses_recency():
+    now = datetime.now(timezone.utc)
+    ev = {
+        "status": {"type": {"state": "post", "shortDetail": "Final"}},
+        "date": _iso(now - timedelta(days=60)),
+        "competitions": [{
+            "competitors": [
+                {"homeAway": "home", "score": "287/6 (50 ov)", "team": {"abbreviation": "IND"}},
+                {"homeAway": "away", "score": "250 all out", "team": {"abbreviation": "AUS"}},
+            ]
+        }],
+    }
+    assert formatters.format_cricket_event(ev) is None  # not a favorite by default
+    item = formatters.format_cricket_event(ev, always_show=["IND"])
+    assert item is not None
+    assert "IND" in item["text"]
+
+
 def test_format_cricket_live_is_yellow():
     ev = {
         "status": {"type": {"state": "in", "shortDetail": "RCB need 2"}},

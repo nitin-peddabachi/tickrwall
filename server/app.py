@@ -37,16 +37,35 @@ def _collect():
             leagues.append(("football", "nfl"))
         for sport, league in leagues:
             favorites = config.FAVORITE_TEAMS.get(sport, ())
+            favorite_items = []
+            other_items = []
             for event in sources.espn_scoreboard(sport, league).get("events", []):
                 item = formatters.format_espn_event(event, always_show=favorites)
-                if item:
-                    items.append(item)
+                if not item:
+                    continue
+                abbrs = {c["team"]["abbreviation"]
+                         for c in event["competitions"][0]["competitors"]}
+                (favorite_items if abbrs & set(favorites) else other_items).append(item)
+            sport_items = favorite_items + other_items
+            max_items = config.MAX_ITEMS_PER_SPORT.get(sport)
+            if max_items is not None:
+                sport_items = sport_items[:max_items]
+            items.extend(sport_items)
     except Exception as exc:
         app.logger.warning("scores failed: %s", exc)
 
     try:
+        cricket_favorites = config.FAVORITE_TEAMS.get("cricket", ())
         for league in config.CRICKET_LEAGUES:
+            favorite_only = league in config.CRICKET_FAVORITE_ONLY_LEAGUES
             for event in sources.espn_scoreboard("cricket", league).get("events", []):
+                if favorite_only:
+                    abbrs = {c["team"]["abbreviation"]
+                             for c in event["competitions"][0]["competitors"]}
+                    if not abbrs & set(cricket_favorites):
+                        continue
+                # No always_show bypass here (unlike NFL/soccer): India should
+                # only show on match day / while live, not indefinitely.
                 item = formatters.format_cricket_event(event)
                 if item:
                     items.append(item)
