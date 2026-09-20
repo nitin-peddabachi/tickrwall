@@ -38,7 +38,8 @@ SCALE = 2
 DIM_FACTOR = 0.25
 LOGO_GAP = 3  # native pixels between an icon and the text that follows it
 
-INTRO_SECONDS = 10
+INTRO_SECONDS = 10  # minimum rain time at boot; keeps running past this until data arrives
+CYCLE_RAIN_SECONDS = 15  # rain interlude played between each full pass through the feed
 INTRO_FRAME_DELAY = 0.03
 INTRO_GREEN = "#00FF41"  # classic "Matrix" green
 
@@ -86,15 +87,13 @@ for _symbol, (_rows, _color_hex) in LOGOS.items():
     )
 
 
-def matrix_rain_intro():
-    """Boot flourish: falling-green-column effect, ~5-6s, then returns.
+def start_matrix_rain():
+    """Set up the falling-green-column boot animation and show it immediately.
 
-    Only redraws the small band of rows a column's trail actually occupies,
-    plus clearing whatever rows it just fell past, instead of recomputing
-    all `height` rows for every column on every frame. On the M4's CPU, a
-    full 64x32 recompute per frame was slow enough that the intended frame
-    rate never happened in practice, making the animation look sluggish —
-    this keeps per-frame work close to O(trail length) instead of O(height).
+    Returns a state dict for advance_matrix_rain() to step frame-by-frame.
+    Split from the stepping logic (rather than looping for a fixed duration
+    here) so the caller can keep animating for as long as it takes to get
+    on WiFi and fetch the first feed — see the combined loop below.
     """
     width, height = display.width, display.height
     shade_count = 8  # index 0 = off; 1..7 = dim -> bright green
@@ -110,17 +109,37 @@ def matrix_rain_intro():
     group.append(displayio.TileGrid(bitmap, pixel_shader=palette))
     display.root_group = group
 
+    state = {
+        "width": width,
+        "height": height,
+        "shade_count": shade_count,
+        "bitmap": bitmap,
+        "heads": [random.uniform(-height, 0) for _ in range(width)],
+        "speeds": [random.uniform(1.2, 2.8) for _ in range(width)],
+        "lengths": [random.randint(4, 10) for _ in range(width)],
+        "prev_int_head": [None] * width,
+    }
+    return state
+
+
+def advance_matrix_rain(state):
+    """Draw exactly one frame of the rain animation and sleep.
+
+    Only redraws the small band of rows a column's trail actually occupies,
+    plus clearing whatever rows it just fell past, instead of recomputing
+    all `height` rows for every column on every frame. On the M4's CPU, a
+    full 64x32 recompute per frame was slow enough that the intended frame
+    rate never happened in practice, making the animation look sluggish —
+    this keeps per-frame work close to O(trail length) instead of O(height).
+    """
+    width, height = state["width"], state["height"]
+    shade_count = state["shade_count"]
+    bitmap = state["bitmap"]
+    heads, speeds, lengths = state["heads"], state["speeds"], state["lengths"]
+    prev_int_head = state["prev_int_head"]
+
     def new_drop():
         return random.uniform(-10, 0), random.uniform(1.2, 2.8), random.randint(4, 10)
-
-    heads = [0.0] * width
-    speeds = [0.0] * width
-    lengths = [0] * width
-    prev_int_head = [None] * width
-    for x in range(width):
-        heads[x] = random.uniform(-height, 0)
-        speeds[x] = random.uniform(1.2, 2.8)
-        lengths[x] = random.randint(4, 10)
 
     def draw_band(x, head, length, prev_head):
         top = head - length
@@ -138,24 +157,23 @@ def matrix_rain_intro():
             for y in range(max(0, prev_head - length), min(height, top)):
                 bitmap[x, y] = 0
 
-    start = time.monotonic()
-    while time.monotonic() - start < INTRO_SECONDS:
-        for x in range(width):
-            head = int(heads[x])
-            if head != prev_int_head[x]:
-                draw_band(x, head, lengths[x], prev_int_head[x])
-                prev_int_head[x] = head
-            heads[x] += speeds[x]
-            if heads[x] - lengths[x] > height:
-                old_head, old_length = int(heads[x]), lengths[x]
-                for y in range(max(0, old_head - old_length), min(height, old_head + 1)):
-                    bitmap[x, y] = 0
-                heads[x], speeds[x], lengths[x] = new_drop()
-                prev_int_head[x] = None
-        time.sleep(INTRO_FRAME_DELAY)
+    for x in range(width):
+        head = int(heads[x])
+        if head != prev_int_head[x]:
+            draw_band(x, head, lengths[x], prev_int_head[x])
+            prev_int_head[x] = head
+        heads[x] += speeds[x]
+        if heads[x] - lengths[x] > height:
+            old_head, old_length = int(heads[x]), lengths[x]
+            for y in range(max(0, old_head - old_length), min(height, old_head + 1)):
+                bitmap[x, y] = 0
+            heads[x], speeds[x], lengths[x] = new_drop()
+            prev_int_head[x] = None
+    time.sleep(INTRO_FRAME_DELAY)
 
 
-matrix_rain_intro()
+rain_state = start_matrix_rain()
+intro_start = time.monotonic()
 
 try:
     import wifi  # only importable on boards with a native WiFi radio (e.g. S3)
@@ -207,7 +225,8 @@ icon_group = displayio.Group()  # holds at most one logo TileGrid at a time
 outer_group = displayio.Group()
 outer_group.append(icon_group)
 outer_group.append(text_group)
-display.root_group = outer_group
+# Not shown yet — the rain animation (started above) keeps running as the
+# root_group until the combined wait-loop below actually has feed data.
 
 
 def scroll_item(item, night):
@@ -236,8 +255,21 @@ def scroll_item(item, night):
         time.sleep(SCROLL_DELAY)
 
 
+# Keep the rain animating — not a fixed pause — until BOTH the minimum
+# INTRO_SECONDS has elapsed AND the first feed fetch has actually succeeded.
+# A slow WiFi connect or a slow/failing first fetch just means more rain,
+# never a frozen frame or a "no data" placeholder before we've even tried.
 feed = None
-last_fetch = 0.0
+last_attempt = 0.0
+while feed is None or time.monotonic() - intro_start < INTRO_SECONDS:
+    advance_matrix_rain(rain_state)
+    now = time.monotonic()
+    if feed is None and now - last_attempt >= 1.0:
+        feed = fetch_feed()
+        last_attempt = now
+
+display.root_group = outer_group
+last_fetch = time.monotonic()
 
 while True:
     if feed is None or time.monotonic() - last_fetch > REFRESH_SECONDS:
@@ -253,3 +285,10 @@ while True:
 
     for entry in feed["items"]:
         scroll_item(entry, feed.get("dim", False))
+
+    # Rain interlude between full passes through the ticker.
+    cycle_rain = start_matrix_rain()
+    cycle_rain_start = time.monotonic()
+    while time.monotonic() - cycle_rain_start < CYCLE_RAIN_SECONDS:
+        advance_matrix_rain(cycle_rain)
+    display.root_group = outer_group
